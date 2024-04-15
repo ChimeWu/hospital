@@ -15,7 +15,7 @@ use crate::systems::set::*;
 use crate::components::*;
 
 use self::things::fire::BuildingFire;
-use self::things::get_needed_parameters;
+
 use self::things::human::*;
 use self::things::smoke::BuildingSmoke;
 use self::things::NeededParameters;

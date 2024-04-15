@@ -11,7 +11,7 @@ use std::hash::{Hash, Hasher};
 
 use crate::components::painting::*;
 use crate::components::*;
-use crate::evacuation::rules::human;
+
 use crate::systems::paper::{get_x, get_y};
 
 use super::smoke::*;
