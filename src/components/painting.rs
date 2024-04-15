@@ -255,4 +255,3 @@ impl Default for PaperInfo {
         PaperInfo { page: 0 }
     }
 }
-

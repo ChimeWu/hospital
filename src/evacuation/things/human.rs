@@ -2,18 +2,16 @@ use bevy::prelude::*;
 
 use rand::Rng;
 
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
-use std::cmp::Ordering;
-use std::collections::BinaryHeap;
 
 use crate::components::painting::*;
 use crate::components::*;
 use crate::systems::paper::{get_x, get_y};
-
-
 
 use super::smoke::*;
 
@@ -101,7 +99,6 @@ impl Default for BuildingPass {
         }
     }
 }
-
 
 #[derive(Component, Debug, Clone, PartialEq)]
 pub enum MoveDirection {
@@ -234,7 +231,6 @@ pub struct BuildingEvacuation {
     pub now_map: MapMarker,
 }
 
-
 #[derive(Component, Debug, Clone)]
 pub struct Human {
     pub id: usize,
@@ -269,34 +265,26 @@ impl Hash for Human {
     }
 }
 
-impl Human{
-    pub fn clc_position(&mut self, size: f32, width: f32, height: f32){
+impl Human {
+    pub fn clc_position(&mut self, size: f32, width: f32, height: f32) {
         let (i, j) = self.now_tile;
-        self.position = Vec3::new(
-            get_x(size, j, width),
-            get_y(size, i, height),
-            12.0,
-        );
+        self.position = Vec3::new(get_x(size, j, width), get_y(size, i, height), 12.0);
     }
 
     pub fn clc_next_position(&mut self, size: f32, width: f32, height: f32) {
         let (i, j) = self.next_tile;
-        self.next_position = Vec3::new(
-            get_x(size, j, width),
-            get_y(size, i, height),
-            12.0,
-        );
+        self.next_position = Vec3::new(get_x(size, j, width), get_y(size, i, height), 12.0);
     }
 
     pub fn find_my_target(&mut self, evacuation: &StoreyPass) {
         let now = self.now_tile;
         let mut min_dis = usize::MAX;
-        let mut temp_target = (0,0);
-        for &(i,j) in &evacuation.exit {
+        let mut temp_target = (0, 0);
+        for &(i, j) in &evacuation.exit {
             let dis = ((i as i32 - now.0 as i32).abs() + (j as i32 - now.1 as i32).abs()) as usize;
             if dis < min_dis {
                 min_dis = dis;
-                temp_target = (i,j);
+                temp_target = (i, j);
             }
         }
         self.target_tile = temp_target;
@@ -315,7 +303,11 @@ impl Human{
             for (di, dj) in vec![(0, 1), (0, -1), (1, 0), (-1, 0)] {
                 let new_i = i as i32 + di;
                 let new_j = j as i32 + dj;
-                if new_i >= 0 && new_i < evacuation.map.len() as i32 && new_j >= 0 && new_j < evacuation.map[0].len() as i32 {
+                if new_i >= 0
+                    && new_i < evacuation.map.len() as i32
+                    && new_j >= 0
+                    && new_j < evacuation.map[0].len() as i32
+                {
                     let new_i = new_i as usize;
                     let new_j = new_j as usize;
                     if let Pass::Passable(_) = evacuation.map[new_i][new_j] {
@@ -338,29 +330,31 @@ impl Human{
         self.my_path = my_path;
     }
 
-    pub fn find_my_safe_place(&mut self, evacuation: &Map){
+    pub fn find_my_safe_place(&mut self, evacuation: &Map) {
         let now = self.now_tile;
         let mut min_dis = usize::MAX;
-        let mut temp_target = (0,0);
+        let mut temp_target = (0, 0);
         for i in 0..evacuation.tiles.len() {
             for j in 0..evacuation.tiles[0].len() {
                 if evacuation.tiles[i][j] == TileType::SavePlace {
-                    let dis = ((i as i32 - now.0 as i32).abs() + (j as i32 - now.1 as i32).abs()) as usize;
+                    let dis = ((i as i32 - now.0 as i32).abs() + (j as i32 - now.1 as i32).abs())
+                        as usize;
                     if dis < min_dis {
                         min_dis = dis;
-                        temp_target = (i,j);
+                        temp_target = (i, j);
                     }
                 }
             }
         }
-        self.target_tile = temp_target; 
+        self.target_tile = temp_target;
     }
 
-    pub fn find_my_safe_path(&mut self, evacuation: &Map){
+    pub fn find_my_safe_path(&mut self, evacuation: &Map) {
         let now = self.now_tile;
         let target = self.target_tile;
+        //用广度优先搜索算法
+        //只有TileType::Stone 和Tiletype：：Saveplace是可通行的
         let mut queue = VecDeque::new();
-        //Dijkstra算法
         let mut cost = vec![vec![usize::MAX; evacuation.tiles[0].len()]; evacuation.tiles.len()];
         let mut path = vec![vec![(0, 0); evacuation.tiles[0].len()]; evacuation.tiles.len()];
         cost[now.0][now.1] = 0;
@@ -369,10 +363,17 @@ impl Human{
             for (di, dj) in vec![(0, 1), (0, -1), (1, 0), (-1, 0)] {
                 let new_i = i as i32 + di;
                 let new_j = j as i32 + dj;
-                if new_i >= 0 && new_i < evacuation.tiles.len() as i32 && new_j >= 0 && new_j < evacuation.tiles[0].len() as i32 {
+                if new_i >= 0
+                    && new_i < evacuation.tiles.len() as i32
+                    && new_j >= 0
+                    && new_j < evacuation.tiles[0].len() as i32
+                {
                     let new_i = new_i as usize;
                     let new_j = new_j as usize;
-                    if evacuation.tiles[new_i][new_j] == TileType::Stone {
+                    if evacuation.tiles[new_i][new_j] == TileType::Stone
+                        || evacuation.tiles[new_i][new_j] == TileType::SavePlace
+                        || evacuation.tiles[new_i][new_j] == TileType::Exit
+                    {
                         let new_cost = cost[i][j] + 1;
                         if new_cost < cost[new_i][new_j] {
                             cost[new_i][new_j] = new_cost;
@@ -392,29 +393,27 @@ impl Human{
         self.my_path = my_path;
     }
 
-    pub fn smoke_damage(&mut self, smoke: &StoreySmoke,time: f32) {
+    pub fn smoke_damage(&mut self, smoke: &StoreySmoke, time: f32) {
         let (i, j) = self.now_tile;
         if let Smoke::Diffusible(density) = &smoke.map[i][j] {
-            self.hp -= time*density.value;
+            self.hp -= time * density.value;
             if self.hp <= 0.0 {
                 self.is_dead = true;
             }
         }
     }
 
-    pub fn change_my_speed(&mut self){
+    pub fn change_my_speed(&mut self) {
         if self.hp <= 0.0 {
             self.speed = 0.0;
-        }else{
+        } else {
             self.speed = self.max_speed * self.hp / self.max_hp;
         }
     }
 
-    pub fn change_my_direction(&mut self){
+    pub fn change_my_direction(&mut self) {
         self.direction = (self.next_position - self.position).normalize();
     }
-
-
 }
 
 impl Default for Human {
@@ -432,7 +431,9 @@ impl Default for Human {
             my_path: VecDeque::new(),
             hp: 100.0,
             max_hp: 100.0,
-            storey: MapMarker { name: "default".to_string() },
+            storey: MapMarker {
+                name: "default".to_string(),
+            },
             is_evacuated: false,
             is_dead: false,
             is_safe: false,
@@ -441,7 +442,7 @@ impl Default for Human {
 }
 
 #[derive(Component, Debug, Clone, PartialEq)]
-pub struct HumanMarker{
+pub struct HumanMarker {
     pub id: usize,
     pub storey: MapMarker,
 }
@@ -466,11 +467,12 @@ pub struct TheCrowd {
 
 impl TheCrowd {
     pub fn new() -> Self {
-        TheCrowd { humans: Vec::new() 
-        , texture_path: "./movethings/mango.png".to_string()
-        , element_size: 1.0
-        , board_width: 50.0
-        , board_height: 40.0
+        TheCrowd {
+            humans: Vec::new(),
+            texture_path: "./movethings/mango.png".to_string(),
+            element_size: 1.0,
+            board_width: 50.0,
+            board_height: 40.0,
         }
     }
 
@@ -478,7 +480,7 @@ impl TheCrowd {
         let mut rng = rand::thread_rng();
         for i in 0..pass.tiles.len() {
             for j in 0..pass.tiles[0].len() {
-                if TileType::Floor == pass.tiles[i][j]{
+                if TileType::Floor == pass.tiles[i][j] {
                     if rng.gen_bool(0.2) {
                         let mut human = Human::default();
                         human.id = self.humans.len();
@@ -501,17 +503,22 @@ impl TheCrowd {
 }
 
 #[derive(Event)]
-pub struct Evacuated{
+pub struct Evacuated {
     pub id: usize,
 }
 
 #[derive(Event)]
-pub struct Dead{
+pub struct Dead {
     pub id: usize,
 }
 
 #[derive(Event)]
-pub struct ChangeStorey{
+pub struct ChangeStorey {
+    pub id: usize,
+}
+
+#[derive(Event)]
+pub struct ChangeSafe {
     pub id: usize,
 }
 

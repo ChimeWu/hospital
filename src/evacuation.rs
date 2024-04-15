@@ -4,8 +4,8 @@ pub mod things;
 use bevy::prelude::*;
 
 use crate::evacuation::rules::fire::*;
-use crate::evacuation::rules::smoke::*;
 use crate::evacuation::rules::human::*;
+use crate::evacuation::rules::smoke::*;
 
 use crate::systems::button::*;
 
@@ -37,6 +37,7 @@ impl Plugin for SetUpPlugin {
             .add_event::<Evacuated>()
             .add_event::<Dead>()
             .add_event::<ChangeStorey>()
+            .add_event::<ChangeSafe>()
             .add_systems(
                 Startup,
                 (
@@ -89,6 +90,7 @@ impl Plugin for FirePlugin {
                 to_get_safe,
                 change_storey,
                 dead,
+                is_safe,
             ),
         );
     }

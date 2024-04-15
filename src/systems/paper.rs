@@ -315,24 +315,19 @@ pub fn spawn_building_png(
             for the_paper in query.iter() {
                 commands.entity(the_paper).with_children(|builder| {
                     let path = "./building/1F.png".to_string();
-                    builder.spawn(
-                        SpriteBundle {
-                            texture: asset_server.load(path),
-                            sprite: Sprite {
-                                custom_size: Some(Vec2::new(1.43*board_height, board_height)),
-                                color: Color::rgba(1.0, 1.0, 1.0, 1.0),
-                                ..default()
-                            },
-                            transform: Transform {
-                                translation: Vec3::new(
-                                    0.0,0.0,
-                                    12.0,
-                                ),
-                                ..default()
-                            },
+                    builder.spawn(SpriteBundle {
+                        texture: asset_server.load(path),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(1.43 * board_height, board_height)),
+                            color: Color::rgba(1.0, 1.0, 1.0, 1.0),
                             ..default()
                         },
-                    );
+                        transform: Transform {
+                            translation: Vec3::new(0.0, 0.0, 12.0),
+                            ..default()
+                        },
+                        ..default()
+                    });
                 });
                 atomic_command.queue.pop_front();
             }

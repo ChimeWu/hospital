@@ -50,7 +50,15 @@ impl Plugin for PaperPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (new_map, new_paper, delete_paper, spawn_paper, spawn_map,spawn_building_png).chain(),
+            (
+                new_map,
+                new_paper,
+                delete_paper,
+                spawn_paper,
+                spawn_map,
+                spawn_building_png,
+            )
+                .chain(),
         )
         .add_systems(
             Update,

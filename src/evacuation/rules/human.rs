@@ -1,20 +1,16 @@
-
 use bevy::ecs::event;
 use bevy::ecs::query;
 use bevy::prelude::*;
 use bevy::transform::commands;
 
+use crate::components::painting::*;
 use crate::evacuation::things::human::*;
 use crate::evacuation::things::smoke::*;
-use crate::components::painting::*;
 use crate::systems::paper;
 
 use super::smoke;
 
-pub fn init_building_pass(
-    mut building_pass: ResMut<BuildingPass>,
-    map_album: Res<MapAlbum>,
-) {
+pub fn init_building_pass(mut building_pass: ResMut<BuildingPass>, map_album: Res<MapAlbum>) {
     for (marker, map) in map_album.maps.iter() {
         let mut storey_pass = StoreyPass::new(map.tiles.len(), map.tiles[0].len());
         storey_pass.init_from_map(map);
@@ -26,8 +22,8 @@ pub fn init_the_crowd(
     mut the_crowd: ResMut<TheCrowd>,
     map_album: Res<MapAlbum>,
     paper_album: Res<PaperAlbum>,
-){
-    for (marker, pass) in map_album.maps.iter(){
+) {
+    for (marker, pass) in map_album.maps.iter() {
         the_crowd.extend_from_pass(pass, marker.clone());
     }
     let paper = &paper_album.papers[0];
@@ -39,11 +35,11 @@ pub fn init_the_crowd(
 pub fn init_crowd_target_and_path(
     mut the_crowd: ResMut<TheCrowd>,
     building_pass: Res<BuildingPass>,
-){
+) {
     let size = the_crowd.element_size;
     let width = the_crowd.board_width;
     let height = the_crowd.board_height;
-    for human in the_crowd.humans.iter_mut(){
+    for human in the_crowd.humans.iter_mut() {
         let pass = &building_pass.maps[&human.storey];
         human.find_my_target(pass);
         human.find_my_path(pass);
@@ -52,7 +48,6 @@ pub fn init_crowd_target_and_path(
         human.clc_next_position(size, width, height);
         human.change_my_direction();
     }
-    let men10 = the_crowd.humans[10].clone();
 }
 
 pub fn spawn_people(
@@ -60,28 +55,36 @@ pub fn spawn_people(
     the_crowd: Res<TheCrowd>,
     query: Query<(Entity, &PaperMarker)>,
     asset_server: Res<AssetServer>,
-){
-    for (entity, papermarker) in query.iter(){
+) {
+    for (entity, papermarker) in query.iter() {
         let element_size = the_crowd.element_size;
         let board_width = the_crowd.board_width;
         let board_height = the_crowd.board_height;
         let path = the_crowd.texture_path.clone();
 
-        commands.entity(entity).with_children(|builder|{
-            for human in the_crowd.humans.iter(){
-                if human.storey != papermarker.map{
+        let f1 = MapMarker {
+            name: "f1".to_string(),
+        };
+
+        commands.entity(entity).with_children(|builder| {
+            for human in the_crowd.humans.iter() {
+                if human.storey != papermarker.map {
                     continue;
                 }
                 builder.spawn((
-                    SpriteBundle{
+                    SpriteBundle {
                         texture: asset_server.load(&path),
-                        sprite: Sprite{
-                            custom_size: Some(Vec2::new(0.8*element_size, 0.8*element_size)),
-                            color: Color::rgba(1.0, 1.0, 1.0, 1.0),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(0.8 * element_size, 0.8 * element_size)),
+                            color: {if human.storey == f1 {
+                                Color::rgba(0.8, 0.6, 0.6, 1.0)
+                            } else {
+                                Color::rgba(0.6, 1.0, 0.6, 1.0)
+                            }},
                             ..Default::default()
                         },
                         visibility: Visibility::Inherited,
-                        transform: Transform{
+                        transform: Transform {
                             translation: Vec3::new(
                                 paper::get_x(element_size, human.now_tile.1, board_width),
                                 paper::get_y(element_size, human.now_tile.0, board_height),
@@ -98,8 +101,6 @@ pub fn spawn_people(
     }
 }
 
-
-
 pub fn people_run(
     mut query: Query<(&mut Transform, &HumanMarker)>,
     smoke: Res<BuildingSmoke>,
@@ -108,43 +109,50 @@ pub fn people_run(
     mut event1: EventWriter<Dead>,
     mut event2: EventWriter<Evacuated>,
     mut event3: EventWriter<ChangeStorey>,
-){
+    mut event4: EventWriter<ChangeSafe>,
+) {
     let size = the_crowd.element_size;
     let width = the_crowd.board_width;
     let height = the_crowd.board_height;
-    for (mut transform, human) in query.iter_mut(){
+    for (mut transform, human) in query.iter_mut() {
         let id = human.id;
         let human = &mut the_crowd.humans[id];
         let storey_smoke = &smoke.maps[&human.storey];
 
-        human.smoke_damage(storey_smoke,time.delta_seconds());
+        human.smoke_damage(storey_smoke, time.delta_seconds());
 
-
-        if human.hp <= 0.0{
+        if human.hp <= 0.0 {
             human.is_dead = true;
-            event1.send(Dead{id: id});
+            event1.send(Dead { id: id });
             continue;
         }
 
-
-        if transform.translation == human.next_position{
-            if let Some(p) = human.my_path.pop_front(){
+        if transform.translation == human.next_position {
+            if let Some(p) = human.my_path.pop_front() {
                 human.now_tile = p;
-                if human.now_tile == human.target_tile{
-                    let f1 = MapMarker{name: "f1".to_string()};
-                    let f2 = MapMarker{name: "f2".to_string()};
-                    if human.is_evacuated == false{
-                        if human.storey == f1{
-                            event2.send(Evacuated{id: id});
+                if human.now_tile == human.target_tile {
+                    let f1 = MapMarker {
+                        name: "f1".to_string(),
+                    };
+                    let f2 = MapMarker {
+                        name: "f2".to_string(),
+                    };
+                    if human.is_evacuated == false {
+                        if human.storey == f1 {
+                            event2.send(Evacuated { id: id });
                             human.is_evacuated = true;
-                        }else if human.storey == f2{
-                            event3.send(ChangeStorey{id: id});
+                        } else if human.storey == f2 {
+                            event3.send(ChangeStorey { id: id });
                         }
-                    }
+                    }else if human.is_evacuated == true {
+                        human.is_safe = true;
+                        event4.send(ChangeSafe { id: id });
+                        continue;
+                    }       
                 }
             }
 
-            if let Some(next_tile) = human.my_path.front(){;
+            if let Some(next_tile) = human.my_path.front() {
                 human.next_tile = *next_tile;
                 human.position = human.next_position;
                 human.clc_next_position(size, width, height);
@@ -153,55 +161,63 @@ pub fn people_run(
         }
 
         human.change_my_speed();
-        let newpos = transform.translation + human.direction *human.speed * time.delta_seconds();
+        let newpos = transform.translation + human.direction * human.speed * time.delta_seconds();
         let dis0 = transform.translation.distance(newpos);
         let dis1 = transform.translation.distance(human.next_position);
-        if dis0 >= dis1{
+        if dis0 >= dis1 {
             transform.translation = human.next_position;
-        }else{
+        } else {
             transform.translation = newpos;
         }
-        
     }
 }
 
-pub fn dead(
-    mut events: EventReader<Dead>,
-    mut query: Query<(&mut Sprite, &HumanMarker)>,
-){
-    for event in events.read(){
+pub fn dead(mut events: EventReader<Dead>, mut query: Query<(&mut Sprite, &HumanMarker)>) {
+    for event in events.read() {
         let id = event.id;
-        for (mut sprite, human) in query.iter_mut(){
-            if human.id == id{
-                sprite.color.set_b(0.0);
-                sprite.color.set_g(0.0);
+        for (mut sprite, human) in query.iter_mut() {
+            if human.id == id {
+                sprite.color.set_r(0.1);
+                sprite.color.set_b(0.1);
+                sprite.color.set_g(0.1);
             }
         }
-
     }
 }
-
 
 pub fn to_get_safe(
     mut the_crowd: ResMut<TheCrowd>,
     map_album: Res<MapAlbum>,
     mut events: EventReader<Evacuated>,
-){
-    for event in events.read(){
+) {
+    for event in events.read() {
         let id = event.id;
         let size = the_crowd.element_size;
         let width = the_crowd.board_width;
         let height = the_crowd.board_height;
-        let mut human = &mut the_crowd.humans[id];
+        let human = &mut the_crowd.humans[id];
         let storey = &map_album.maps[&human.storey];
         human.find_my_safe_place(storey);
-        println!("safe place:{:?}",human.now_tile);
         human.find_my_safe_path(storey);
-        println!("safe path:{:?}",human.my_path);
         human.next_tile = *human.my_path.front().unwrap();
         human.clc_position(size, width, height);
         human.clc_next_position(size, width, height);
         human.change_my_direction();
+    }
+}
+
+pub fn is_safe(
+    mut commands: Commands,
+    mut events: EventReader<ChangeSafe>,
+    query: Query<(Entity, &HumanMarker)>,
+) {
+    for event in events.read() {
+        let id = event.id;
+        for (entity, humanmarker) in query.iter() {
+            if humanmarker.id == id {
+                commands.entity(entity).despawn_recursive();
+            }
+        }
     }
 }
 
@@ -210,39 +226,41 @@ pub fn change_storey(
     building_pass: Res<BuildingPass>,
     mut events: EventReader<ChangeStorey>,
     mut commands: Commands,
-    query: Query<(Entity,&HumanMarker)>,
+    query: Query<(Entity, &HumanMarker)>,
     the_papers: Query<(Entity, &PaperMarker)>,
     asset_server: Res<AssetServer>,
-){
-    for event in events.read(){
+) {
+    for event in events.read() {
         let id = event.id;
         let element_size = the_crowd.element_size;
         let board_width = the_crowd.board_width;
         let board_height = the_crowd.board_height;
         let path = the_crowd.texture_path.clone();
-        let mut human = &mut the_crowd.humans[id];
-        human.storey = MapMarker{name: "f1".to_string()};
-        for (entity, humanmarker) in query.iter(){
-            if humanmarker.id == id{
+        let human = &mut the_crowd.humans[id];
+        human.storey = MapMarker {
+            name: "f1".to_string(),
+        };
+        for (entity, humanmarker) in query.iter() {
+            if humanmarker.id == id {
                 commands.entity(entity).despawn_recursive();
             }
         }
 
-        for (entity, papermarker) in the_papers.iter(){
-            if papermarker.map != human.storey{
+        for (entity, papermarker) in the_papers.iter() {
+            if papermarker.map != human.storey {
                 continue;
-            }    
-            commands.entity(entity).with_children(|builder|{
+            }
+            commands.entity(entity).with_children(|builder| {
                 builder.spawn((
-                    SpriteBundle{
+                    SpriteBundle {
                         texture: asset_server.load(&path),
-                        sprite: Sprite{
-                            custom_size: Some(Vec2::new(0.8*element_size, 0.8*element_size)),
-                            color: Color::rgba(1.0, 1.0, 1.0, 1.0),
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::new(0.8 * element_size, 0.8 * element_size)),
+                            color: Color::rgba(0.6, 1.0, 0.6, 1.0),
                             ..Default::default()
                         },
                         visibility: Visibility::Inherited,
-                        transform: Transform{
+                        transform: Transform {
                             translation: Vec3::new(
                                 paper::get_x(element_size, human.now_tile.1, board_width),
                                 paper::get_y(element_size, human.now_tile.0, board_height),
@@ -267,17 +285,16 @@ pub fn change_storey(
     }
 }
 
-
-pub fn printman10(
-    the_crowd: Res<TheCrowd>,
-    query: Query<(&Transform, &HumanMarker)>,
-){
-    for (transform, human) in query.iter(){
-        if human.id == 10{
-            print!("man10:{:?}",transform.translation);
-            println!("man10:{:?}",the_crowd.humans[10].next_position);
-            println!("{:?}  {:?}", the_crowd.humans[10].now_tile, the_crowd.humans[10].next_tile);
-            println!("{:?}",the_crowd.humans[10].direction);
+pub fn printman10(the_crowd: Res<TheCrowd>, query: Query<(&Transform, &HumanMarker)>) {
+    for (transform, human) in query.iter() {
+        if human.id == 10 {
+            print!("man10:{:?}", transform.translation);
+            println!("man10:{:?}", the_crowd.humans[10].next_position);
+            println!(
+                "{:?}  {:?}",
+                the_crowd.humans[10].now_tile, the_crowd.humans[10].next_tile
+            );
+            println!("{:?}", the_crowd.humans[10].direction);
         }
     }
 }
