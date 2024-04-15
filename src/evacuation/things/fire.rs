@@ -22,6 +22,21 @@ impl StoreyFire {
         }
     }
 
+    pub fn new_with(
+        rows: usize,
+        cols: usize,
+        burning_time: f32,
+        smoking_time: f32,
+        k: f32,
+    ) -> Self {
+        StoreyFire {
+            map: vec![vec![Fire::NeverBurn; cols]; rows],
+            burning_time,
+            smoking_time,
+            k,
+        }
+    }
+
     pub fn init_from_map(&mut self, map: &Map) {
         for i in 0..map.tiles.len() {
             for j in 0..map.tiles[0].len() {
@@ -143,8 +158,8 @@ impl Default for FireTimer {
 impl FireTimer {
     pub fn new(burning_time: f32, smoking_time: f32) -> Self {
         let mut rng = rand::thread_rng();
-        let burning_time = rng.gen_range(0.9 * burning_time..1.1 * burning_time);
-        let smoking_time = rng.gen_range(0.9 * smoking_time..1.1 * smoking_time);
+        let burning_time = rng.gen_range(0.8 * burning_time..1.2 * burning_time);
+        let smoking_time = rng.gen_range(0.8 * smoking_time..1.2 * smoking_time);
         FireTimer {
             burning_timer: Timer::from_seconds(burning_time, TimerMode::Once),
             smoking_timer: Timer::from_seconds(smoking_time, TimerMode::Repeating),

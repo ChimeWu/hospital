@@ -1,21 +1,65 @@
 use crate::components::painting::*;
+use crate::evacuation::things::NeededParameters;
 use crate::evacuation::things::{fire::*, smoke::*};
 use crate::systems::paper::{get_x, get_y};
+use crate::components::TileType;
 use bevy::prelude::*;
 
+use rand::Rng;
+
+//对地图中的可燃物进行随即替换
+pub fn random_replace_furniture(
+    mut map_album: ResMut<MapAlbum>,
+    para: Res<NeededParameters>,
+){
+    let c = para.c;
+    let mut rng = rand::thread_rng();
+    for (_, map) in map_album.maps.iter_mut() {
+        for i in 0..map.tiles.len() {
+            for j in 0..map.tiles[0].len() {
+                if map.tiles[i][j] == TileType::Furniture {
+                    if rng.gen_bool(c as f64) {
+                        map.tiles[i][j] = TileType::Floor;
+                    }
+                }
+                if map.tiles[i][j] == TileType::Floor{
+                    if rng.gen_bool(c as f64) {
+                        map.tiles[i][j] = TileType::Furniture;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 //初始化building_fire
-pub fn init_building_fire(mut building_fire: ResMut<BuildingFire>, map_album: ResMut<MapAlbum>) {
+pub fn init_building_fire(
+    mut building_fire: ResMut<BuildingFire>,
+    map_album: ResMut<MapAlbum>,
+    para: Res<NeededParameters>,
+) {
     for (marker, map) in map_album.maps.iter() {
-        let mut storey_fire = StoreyFire::new(map.tiles.len(), map.tiles[0].len());
+        let k = para.k;
+        let burning_time = para.burning_time;
+        let smoking_time = para.smoking_time;
+        let mut storey_fire = StoreyFire::new_with(
+            map.tiles.len(),
+            map.tiles[0].len(),
+            burning_time,
+            smoking_time,
+            k,
+        );
         storey_fire.init_from_map(map);
         building_fire.maps.insert(marker.clone(), storey_fire);
     }
 }
 
 //初始随即点燃
-pub fn init_random_fire(mut building_fire: ResMut<BuildingFire>) {
+pub fn init_random_fire(mut building_fire: ResMut<BuildingFire>, para: Res<NeededParameters>) {
+    let p = para.p;
     for (_, storey_fire) in building_fire.maps.iter_mut() {
-        storey_fire.get_p_fire(0.05);
+        storey_fire.get_p_fire(p as f64);
     }
 }
 
@@ -110,8 +154,10 @@ pub fn update_fire_visibility(
 pub fn burning(
     mut building_fire: ResMut<BuildingFire>,
     mut building_smoke: ResMut<BuildingSmoke>,
+    para: Res<NeededParameters>,
     time: Res<Time>,
 ) {
+    let s = para.s;
     for (marker, storey_fire) in building_fire.maps.iter_mut() {
         let storey_smoke = building_smoke.maps.get_mut(marker).unwrap();
         for i in 0..storey_fire.map.len() {
@@ -122,7 +168,7 @@ pub fn burning(
                     timer.smoking_timer.tick(time.delta());
                     if timer.smoking_timer.finished() {
                         storey_smoke.map[i][j].density_up(
-                            5.0 * timer.burning_timer.elapsed_secs()
+                            s * timer.burning_timer.elapsed_secs()
                                 / timer.burning_timer.duration().as_secs_f32(),
                         );
                     }

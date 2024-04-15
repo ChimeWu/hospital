@@ -1,14 +1,10 @@
-use bevy::ecs::event;
-use bevy::ecs::query;
 use bevy::prelude::*;
-use bevy::transform::commands;
 
 use crate::components::painting::*;
 use crate::evacuation::things::human::*;
 use crate::evacuation::things::smoke::*;
 use crate::systems::paper;
-
-use super::smoke;
+use crate::evacuation::things::NeededParameters;
 
 pub fn init_building_pass(mut building_pass: ResMut<BuildingPass>, map_album: Res<MapAlbum>) {
     for (marker, map) in map_album.maps.iter() {
@@ -22,9 +18,13 @@ pub fn init_the_crowd(
     mut the_crowd: ResMut<TheCrowd>,
     map_album: Res<MapAlbum>,
     paper_album: Res<PaperAlbum>,
+    para: Res<NeededParameters>,
 ) {
+    let human_seed = para.human_seed;
+    let v = para.v;
+    let h = para.h;
     for (marker, pass) in map_album.maps.iter() {
-        the_crowd.extend_from_pass(pass, marker.clone());
+        the_crowd.extend_from_pass(pass, marker.clone(), human_seed, v, h);
     }
     let paper = &paper_album.papers[0];
     the_crowd.element_size = paper.element_size;
@@ -76,11 +76,13 @@ pub fn spawn_people(
                         texture: asset_server.load(&path),
                         sprite: Sprite {
                             custom_size: Some(Vec2::new(0.8 * element_size, 0.8 * element_size)),
-                            color: {if human.storey == f1 {
-                                Color::rgba(0.8, 0.6, 0.6, 1.0)
-                            } else {
-                                Color::rgba(0.6, 1.0, 0.6, 1.0)
-                            }},
+                            color: {
+                                if human.storey == f1 {
+                                    Color::rgba(0.8, 0.6, 0.6, 1.0)
+                                } else {
+                                    Color::rgba(0.6, 1.0, 0.6, 1.0)
+                                }
+                            },
                             ..Default::default()
                         },
                         visibility: Visibility::Inherited,
@@ -144,11 +146,11 @@ pub fn people_run(
                         } else if human.storey == f2 {
                             event3.send(ChangeStorey { id: id });
                         }
-                    }else if human.is_evacuated == true {
+                    } else if human.is_evacuated == true {
                         human.is_safe = true;
                         event4.send(ChangeSafe { id: id });
                         continue;
-                    }       
+                    }
                 }
             }
 
@@ -281,20 +283,6 @@ pub fn change_storey(
             human.clc_position(element_size, board_width, board_height);
             human.clc_next_position(element_size, board_width, board_height);
             human.change_my_direction();
-        }
-    }
-}
-
-pub fn printman10(the_crowd: Res<TheCrowd>, query: Query<(&Transform, &HumanMarker)>) {
-    for (transform, human) in query.iter() {
-        if human.id == 10 {
-            print!("man10:{:?}", transform.translation);
-            println!("man10:{:?}", the_crowd.humans[10].next_position);
-            println!(
-                "{:?}  {:?}",
-                the_crowd.humans[10].now_tile, the_crowd.humans[10].next_tile
-            );
-            println!("{:?}", the_crowd.humans[10].direction);
         }
     }
 }

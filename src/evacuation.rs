@@ -15,8 +15,10 @@ use crate::systems::set::*;
 use crate::components::*;
 
 use self::things::fire::BuildingFire;
+use self::things::get_needed_parameters;
 use self::things::human::*;
 use self::things::smoke::BuildingSmoke;
+use self::things::NeededParameters;
 
 pub struct SetUpPlugin;
 
@@ -34,6 +36,7 @@ impl Plugin for SetUpPlugin {
             .insert_resource(BuildingSmoke::default())
             .insert_resource(TheCrowd::new())
             .insert_resource(BuildingPass::default())
+            .insert_resource(NeededParameters::load("needed_parameters"))
             .add_event::<Evacuated>()
             .add_event::<Dead>()
             .add_event::<ChangeStorey>()
@@ -71,7 +74,14 @@ impl Plugin for PaperPlugin {
         )
         .add_systems(
             Update,
-            (update_page_info_box, map_edit_button_clicked_for_show, exit),
+            (
+                update_page_info_box,
+                map_edit_button_clicked_for_show,
+                exit,
+                update_dead_num,
+                update_evacuated_num,
+                update_time,
+            ),
         );
     }
 }

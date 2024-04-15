@@ -1,10 +1,13 @@
 use bevy::prelude::*;
+use bevy::{render::camera::RenderTarget, window::WindowRef};
 
 use crate::components::board::*;
 use crate::components::button::*;
 use crate::components::painting::*;
 use crate::components::terminal::*;
 use crate::components::tile::*;
+
+use crate::evacuation::things::human::*;
 
 //设置窗口的基本框架
 pub fn set_window_frame(mut commands: Commands, window: Query<&Window>) {
@@ -228,8 +231,8 @@ pub fn set_window_frame_for_show(mut commands: Commands, window: Query<&Window>)
         NodeBundle {
             style: Style {
                 width: Val::Px(width),
-                height: Val::Px(0.96 * height),
-                flex_direction: FlexDirection::Row,
+                height: Val::Px(height),
+                flex_direction: FlexDirection::Column,
                 margin: UiRect {
                     left: Val::Px(0.0),
                     top: Val::Px(0.0),
@@ -611,54 +614,187 @@ pub fn spawn_page_info_box(
     boards: Query<&Board>,
     asset_server: Res<AssetServer>,
     paper_album: Res<PaperAlbum>,
+    query: Query<Entity, With<NodeRoot>>,
 ) {
+    let root = query.single();
     for board in boards.iter() {
         if board.board_type == BoardType::ButtomBar {
             let width = board.width;
             let height = board.height;
             let page = paper_album.now_paper;
-            commands.spawn((
-                TextBundle {
-                    text: Text::from_section(
-                        format!("Page: {}", page),
-                        TextStyle {
-                            font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            color: Color::BLACK,
-                            font_size: 0.5 * height,
-                        },
-                    ),
-                    style: Style {
-                        width: Val::Px(width),
-                        height: Val::Px(height),
-                        margin: UiRect {
-                            right: Val::Px(0.0),
-                            bottom: Val::Px(0.0),
+
+            commands.entity(root).with_children(|commands| {
+                commands
+                    .spawn(NodeBundle {
+                        style: Style {
+                            height: Val::Px(height),
+                            width: Val::Px(width),
+                            display: Display::Grid,
+                            padding: UiRect::all(Val::Px(5.0)),
+                            grid_template_columns: RepeatedGridTrack::flex(10, 1.0),
+                            grid_template_rows: RepeatedGridTrack::flex(1, 1.0),
+                            row_gap: Val::Percent(2.0),
+                            margin: UiRect {
+                                right: Val::Px(0.0),
+                                bottom: Val::Px(0.0),
+                                ..default()
+                            },
                             ..default()
                         },
-                        align_self: AlignSelf::Center,
                         ..default()
-                    },
-                    transform: Transform {
-                        translation: board.position,
-                        ..default()
-                    },
-                    ..default()
-                },
-                PaperInfo { page },
-            ));
-            println!("Page: {}", page);
+                    })
+                    .with_children(|commands| {
+                        commands.spawn((
+                            TextBundle {
+                                text: Text::from_section(
+                                    format!("storey: {}", page),
+                                    TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        color: Color::BLACK,
+                                        font_size: 0.5 * height,
+                                    },
+                                ),
+                                style: Style {
+                                    width: Val::Px(0.1 * width),
+                                    height: Val::Px(height),
+                                    margin: UiRect {
+                                        right: Val::Px(0.0),
+                                        bottom: Val::Px(0.0),
+                                        ..default()
+                                    },
+                                    align_self: AlignSelf::Center,
+                                    ..default()
+                                },
+                                transform: Transform {
+                                    translation: board.position,
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            PaperInfo { page },
+                        ));
+
+                        commands.spawn((
+                            TextBundle {
+                                text: Text::from_section(
+                                    format!("Dead {}", 0),
+                                    TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        color: Color::BLACK,
+                                        font_size: 0.5 * height,
+                                    },
+                                ),
+                                style: Style {
+                                    width: Val::Px(0.1 * width),
+                                    height: Val::Px(height),
+                                    margin: UiRect {
+                                        right: Val::Px(0.0),
+                                        bottom: Val::Px(0.0),
+                                        ..default()
+                                    },
+                                    align_self: AlignSelf::Center,
+                                    ..default()
+                                },
+                                transform: Transform {
+                                    translation: board.position,
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            DeadBox,
+                        ));
+
+                        commands.spawn((
+                            TextBundle {
+                                text: Text::from_section(
+                                    format!("Evacuated {}", 0),
+                                    TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        color: Color::BLACK,
+                                        font_size: 0.5 * height,
+                                    },
+                                ),
+                                style: Style {
+                                    width: Val::Px(0.1 * width),
+                                    height: Val::Px(height),
+                                    margin: UiRect {
+                                        right: Val::Px(0.0),
+                                        bottom: Val::Px(0.0),
+                                        ..default()
+                                    },
+                                    align_self: AlignSelf::Center,
+                                    ..default()
+                                },
+                                transform: Transform {
+                                    translation: board.position,
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            EvacuatedBox,
+                        ));
+
+                        commands.spawn((
+                            TextBundle {
+                                text: Text::from_section(
+                                    format!("Time {}", 0.0),
+                                    TextStyle {
+                                        font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                                        color: Color::BLACK,
+                                        font_size: 0.5 * height,
+                                    },
+                                ),
+                                style: Style {
+                                    width: Val::Px(0.1 * width),
+                                    height: Val::Px(height),
+                                    margin: UiRect {
+                                        right: Val::Px(0.0),
+                                        bottom: Val::Px(0.0),
+                                        ..default()
+                                    },
+                                    align_self: AlignSelf::Center,
+                                    ..default()
+                                },
+                                transform: Transform {
+                                    translation: board.position,
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            TimeBox,
+                        ));
+                    });
+            });
         }
     }
 }
 
 pub fn update_page_info_box(
-    mut query: Query<(&mut Text, &mut PaperInfo)>,
+    mut query1: Query<(&mut Text, &mut PaperInfo)>,
     paper_album: Res<PaperAlbum>,
 ) {
-    for (mut text, mut info) in query.iter_mut() {
-        if info.page != paper_album.now_paper {
-            text.sections[0].value = format!("Page: {}", paper_album.now_paper);
-            info.page = paper_album.now_paper;
-        }
-    }
+    let (mut text, mut page) = query1.single_mut();
+    text.sections[0].value = format!("Storey: {}", paper_album.now_paper + 1);
+    page.page = paper_album.now_paper;
+}
+
+pub fn update_dead_num(mut query: Query<(&mut Text, &DeadBox)>, human: Res<TheCrowd>) {
+    let (mut text, _) = query.single_mut();
+    let dead = human.humans.iter().filter(|&x| x.is_dead == true).count();
+    text.sections[0].value = format!("Dead: {}/{}", dead, human.humans.len());
+}
+
+pub fn update_evacuated_num(mut query: Query<(&mut Text, &EvacuatedBox)>, human: Res<TheCrowd>) {
+    let (mut text, _) = query.single_mut();
+    let evacuated = human
+        .humans
+        .iter()
+        .filter(|&x| x.is_evacuated == true)
+        .count();
+    text.sections[0].value = format!("Evacuated: {}/{}", evacuated, human.humans.len());
+}
+
+pub fn update_time(mut query: Query<(&mut Text, &TimeBox)>, time: Res<Time>) {
+    let (mut text, _) = query.single_mut();
+    text.sections[0].value = format!("Time: {:.2}", time.elapsed_seconds());
 }

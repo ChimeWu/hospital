@@ -11,6 +11,7 @@ use std::hash::{Hash, Hasher};
 
 use crate::components::painting::*;
 use crate::components::*;
+use crate::evacuation::rules::human;
 use crate::systems::paper::{get_x, get_y};
 
 use super::smoke::*;
@@ -441,6 +442,18 @@ impl Default for Human {
     }
 }
 
+impl Human{
+    pub fn rand_my_hp(&mut self, h: f32) {
+        let mut rng = rand::thread_rng();
+        self.hp = self.max_hp*rng.gen_range((1.0-h)..1.0);
+    }
+
+    pub fn rand_my_speed(&mut self, v: f32) {
+        let mut rng = rand::thread_rng();
+        self.speed = self.max_speed*rng.gen_range((1.0-v)..(1.0+v));
+    }
+}
+
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct HumanMarker {
     pub id: usize,
@@ -476,14 +489,16 @@ impl TheCrowd {
         }
     }
 
-    pub fn extend_from_pass(&mut self, pass: &Map, storey: MapMarker) {
+    pub fn extend_from_pass(&mut self, pass: &Map, storey: MapMarker,human_seed: f32,v: f32,h: f32) {
         let mut rng = rand::thread_rng();
         for i in 0..pass.tiles.len() {
             for j in 0..pass.tiles[0].len() {
                 if TileType::Floor == pass.tiles[i][j] {
-                    if rng.gen_bool(0.2) {
+                    if rng.gen_bool(human_seed as f64) {
                         let mut human = Human::default();
                         human.id = self.humans.len();
+                        human.rand_my_hp(h);
+                        human.rand_my_speed(v);
                         human.now_tile = (i, j);
                         human.storey = storey.clone();
                         self.humans.push(human);
@@ -521,6 +536,18 @@ pub struct ChangeStorey {
 pub struct ChangeSafe {
     pub id: usize,
 }
+
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct DeadBox;
+
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct EvacuatedBox;
+
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct TimeBox;
+
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct ManNumBox;
 
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct Crowd {
